@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>扇巴掌游戏</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --note-yellow: #FFF3A3;
+            --note-yellow-deep: #FFE566;
+            --note-yellow-pale: #FFFDE7;
+            --note-orange: #FFD54F;
+            --note-shadow: rgba(180, 150, 60, 0.18);
+            --tape-color: rgba(255, 245, 200, 0.7);
+            --bg-cream: #FBF7EF;
+            --text-dark: #5D4E37;
+            --text-mid: #8B7355;
+            --text-light: #B8A88A;
+            --accent-red: #E8634A;
+            --accent-green: #6DAF5C;
+            --radius: 4px;
+            --font-hand: 'Ma Shan Zheng', 'ZCOOL KuaiLe', cursive;
+            --font-body: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-cream);
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+            color: var(--text-dark);
+            overflow-x: hidden;
+            cursor: none;
+        }
+
+        /* ---- 纸质背景纹理 ---- */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 31px,
+                    rgba(200, 180, 140, 0.08) 31px,
+                    rgba(200, 180, 140, 0.08) 32px
+                );
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ---- 布局容器 ---- */
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 420px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding: 0 16px env(safe-area-inset-bottom, 0);
+        }
+
+        /* ---- 顶部标题便签 ---- */
+        .title-note {
+            background: var(--note-yellow);
+            padding: 14px 20px 10px;
+            margin: 16px auto 0;
+            width: fit-content;
+            position: relative;
+            box-shadow:
+                2px 3px 8px var(--note-shadow),
+                0 1px 0 rgba(0,0,0,0.03);
+            transform: rotate(-1.2deg);
+        }
+        .title-note::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 18px;
+            background: var(--tape-color);
+            border: 1px solid rgba(200, 185, 130, 0.3);
+            border-radius: 1px;
+        }
+        .title-note h1 {
+            font-family: var(--font-hand);
+            font-size: 1.6em;
+            font-weight: 400;
+            color: var(--text-dark);
+            letter-spacing: 4px;
+            line-height: 1.2;
+        }
+
+        /* ---- 计数区域 ---- */
+        .count-strip {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 16px 0 12px;
+            padding: 8px 0;
+        }
+        .count-strip .label {
+            font-size: 0.85em;
+            color: var(--text-mid);
+        }
+        .count-number {
+            font-family: var(--font-hand);
+            font-size: 1.8em;
+            color: var(--accent-red);
+            line-height: 1;
+            min-width: 50px;
+            text-align: center;
+            transition: transform 0.15s ease;
+        }
+        .count-number.hit {
+            animation: countPop 0.25s ease;
+        }
+        @keyframes countPop {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.35); }
+        }
+
+        /* ---- 主游戏区域 ---- */
+        .game-area {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 5;
+            max-height: 55vh;
+            background: var(--note-yellow-pale);
+            border: none;
+            box-shadow:
+                3px 4px 12px var(--note-shadow),
+                0 0 0 1px rgba(220, 200, 120, 0.25);
+            overflow: hidden;
+            transform: rotate(0.5deg);
+            flex-shrink: 0;
+        }
+        /* 便签顶部撕裂边缘 */
+        .game-area::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 5px;
+            background: linear-gradient(90deg,
+                var(--note-yellow-deep) 0%,
+                var(--note-orange) 100%
+            );
+            z-index: 3;
+        }
+
+        .image-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background:
+                linear-gradient(135deg,
+                    var(--note-yellow-pale) 0%,
+                    rgba(255, 248, 220, 1) 100%
+                );
+        }
+
+        #targetImage {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            position: relative;
+            z-index: 1;
+        }
+
+        .red-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 0, 0, 0);
+            pointer-events: none;
+            z-index: 2;
+            transition: background 0.3s ease;
+        }
+
+        /* ---- 上传区域 ---- */
+        .upload-area {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            z-index: 4;
+        }
+        .upload-area.hidden { display: none; }
+
+        .upload-icon {
+            width: 64px;
+            height: 64px;
+            border: 2px dashed var(--text-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: var(--text-light);
+        }
+        .upload-hint {
+            font-size: 0.9em;
+            color: var(--text-mid);
+        }
+        .upload-btn {
+            font-family: var(--font-hand);
+            background: var(--note-yellow-deep);
+            color: var(--text-dark);
+            padding: 10px 28px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 1.1em;
+            cursor: pointer;
+            box-shadow: 1px 2px 6px var(--note-shadow);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .upload-btn:active {
+            transform: scale(0.97);
+            box-shadow: 0 1px 3px var(--note-shadow);
+        }
+        #fileInput { display: none; }
+
+        /* ---- 成就 ---- */
+        .achievements {
+            display: flex;
+            gap: 8px;
+            margin: 14px 0 10px;
+            justify-content: center;
+        }
+        .achievement {
+            flex: 1;
+            max-width: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 4px;
+            background: var(--note-yellow-pale);
+            border: 1px solid rgba(220, 200, 120, 0.3);
+            border-radius: var(--radius);
+            transition: all 0.3s ease;
+        }
+        .achievement-label {
+            font-size: 0.72em;
+            color: var(--text-mid);
+            white-space: nowrap;
+        }
+        .achievement-status {
+            font-size: 1.1em;
+            color: var(--text-light);
+            line-height: 1;
+        }
+        .achievement.unlocked {
+            background: #FFF8DC;
+            border-color: var(--accent-green);
+        }
+        .achievement.unlocked .achievement-status {
+            color: var(--accent-green);
+        }
+
+        /* ---- 底部按钮 ---- */
+        .controls {
+            display: flex;
+            gap: 10px;
+            padding: 10px 0 20px;
+            padding-bottom: calc(20px + env(safe-area-inset-bottom, 0));
+            margin-top: auto;
+        }
+        .btn {
+            flex: 1;
+            font-family: var(--font-hand);
+            font-size: 1em;
+            padding: 12px 0;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+            box-shadow: 1px 2px 6px var(--note-shadow);
+        }
+        .btn:active {
+            transform: scale(0.96);
+            box-shadow: 0 1px 2px var(--note-shadow);
+        }
+        .btn-primary {
+            background: var(--note-yellow-deep);
+            color: var(--text-dark);
+        }
+        .btn-subtle {
+            background: var(--note-yellow-pale);
+            color: var(--text-mid);
+            border: 1px solid rgba(220, 200, 120, 0.3);
+        }
+
+        /* ---- 手部光标 ---- */
+        .hand {
+            position: fixed;
+            font-size: 56px;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.18));
+            transition: transform 0.08s ease;
+        }
+        .hand.slapping {
+            animation: slapAnim 0.18s ease;
+        }
+        @keyframes slapAnim {
+            0%   { transform: translate(-50%, -50%) rotate(-25deg) scale(1); }
+            50%  { transform: translate(-50%, -50%) rotate(8deg) scale(1.25); }
+            100% { transform: translate(-50%, -50%) rotate(0deg) scale(1); }
+        }
+
+        /* ---- 抖动 ---- */
+        .shake { animation: shake 0.28s ease; }
+        @keyframes shake {
+            0%, 100% { transform: rotate(0.5deg) translate(0, 0); }
+            20%, 60% { transform: rotate(0.5deg) translate(-6px, 0); }
+            40%, 80% { transform: rotate(0.5deg) translate(6px, 0); }
+        }
+
+        /* ---- 打击特效 ---- */
+        .hit-effect {
+            position: fixed;
+            font-size: 2.4em;
+            pointer-events: none;
+            z-index: 50;
+            animation: hitPop 0.5s ease forwards;
+        }
+        @keyframes hitPop {
+            0%   { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(2) rotate(180deg); }
+        }
+
+        /* ---- 对话气泡 ---- */
+        .dialogue-bubble {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: var(--font-hand);
+            background: white;
+            color: var(--text-dark);
+            padding: 8px 18px;
+            border-radius: 16px;
+            font-size: 1em;
+            box-shadow: 1px 2px 8px var(--note-shadow);
+            z-index: 150;
+            animation: bubbleFade 2s ease forwards;
+            max-width: 85%;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .dialogue-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0; height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 7px solid white;
+        }
+        @keyframes bubbleFade {
+            0%   { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+            8%   { opacity: 1; transform: translateX(-50%) translateY(0); }
+            85%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+        }
+
+        /* ---- 设置面板 ---- */
+        .settings-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(90, 75, 50, 0.35);
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .settings-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .settings-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-height: 70vh;
+            background: var(--note-yellow);
+            border-radius: 18px 18px 0 0;
+            box-shadow: 0 -4px 24px var(--note-shadow);
+            z-index: 2001;
+            padding: 0 20px 24px;
+            padding-bottom: calc(24px + env(safe-area-inset-bottom, 0));
+            overflow-y: auto;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        .settings-panel.open {
+            transform: translateY(0);
+        }
+
+        .settings-handle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 0 8px;
+            position: sticky;
+            top: 0;
+            background: var(--note-yellow);
+            z-index: 1;
+        }
+        .settings-handle::before {
+            content: '';
+            width: 36px;
+            height: 4px;
+            background: var(--note-orange);
+            border-radius: 2px;
+        }
+
+        .settings-title {
+            font-family: var(--font-hand);
+            font-size: 1.3em;
+            color: var(--text-dark);
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .setting-group {
+            margin-bottom: 20px;
+        }
+        .setting-group h3 {
+            font-family: var(--font-hand);
+            font-size: 1em;
+            color: var(--text-dark);
+            margin-bottom: 8px;
+        }
+        .setting-group label {
+            display: block;
+            color: var(--text-mid);
+            margin-bottom: 6px;
+            font-size: 0.82em;
+        }
+
+        .setting-group input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: var(--note-yellow-deep);
+            border-radius: 3px;
+            outline: none;
+            margin: 8px 0;
+        }
+        .setting-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--text-dark);
+            cursor: pointer;
+            border: 3px solid var(--note-yellow);
+        }
+
+        .setting-group input[type="text"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid rgba(200, 180, 120, 0.4);
+            border-radius: var(--radius);
+            font-size: 0.9em;
+            background: var(--note-yellow-pale);
+            color: var(--text-dark);
+            outline: none;
+        }
+        .setting-group input[type="text"]:focus {
+            border-color: var(--note-orange);
+        }
+
+        .dialogue-list {
+            max-height: 150px;
+            overflow-y: auto;
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .dialogue-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background: var(--note-yellow-pale);
+            border-radius: var(--radius);
+        }
+        .dialogue-item span {
+            flex: 1;
+            font-size: 0.85em;
+            color: var(--text-dark);
+        }
+        .delete-btn {
+            background: none;
+            border: none;
+            color: var(--accent-red);
+            font-size: 1.1em;
+            cursor: pointer;
+            padding: 2px 6px;
+            line-height: 1;
+        }
+        .add-btn {
+            width: 100%;
+            font-family: var(--font-hand);
+            background: var(--note-yellow-deep);
+            color: var(--text-dark);
+            border: none;
+            padding: 10px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 8px;
+            box-shadow: 1px 2px 4px var(--note-shadow);
+        }
+
+        /* ---- 响应式微调 ---- */
+        @media (max-height: 680px) {
+            .title-note { margin-top: 10px; padding: 10px 16px 8px; }
+            .title-note h1 { font-size: 1.3em; }
+            .count-strip { margin: 10px 0 8px; }
+            .game-area { max-height: 48vh; }
+            .achievements { margin: 10px 0 6px; }
+        }
+
+        @media (min-width: 500px) {
+            body { cursor: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 标题便签 -->
+        <div class="title-note">
+            <h1>扇巴掌</h1>
+        </div>
+
+        <!-- 计数 -->
+        <div class="count-strip">
+            <span class="label">已被抽</span>
+            <span class="count-number" id="counter">0</span>
+            <span class="label">次</span>
+        </div>
+
+        <!-- 游戏主区域 -->
+        <div class="game-area" id="gameArea">
+            <div class="image-container">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">＋</div>
+                    <p class="upload-hint">上传一张图片开始</p>
+                    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">选择图片</button>
+                    <input type="file" id="fileInput" accept="image/*">
+                </div>
+                <img id="targetImage" style="display: none;">
+                <div class="red-overlay" id="redOverlay"></div>
+            </div>
+        </div>
+
+        <!-- 成就 -->
+        <div class="achievements">
+            <div class="achievement" id="achievement-1">
+                <span class="achievement-label">1次</span>
+                <span class="achievement-status">✗</span>
+            </div>
+            <div class="achievement" id="achievement-100">
+                <span class="achievement-label">100次</span>
+                <span class="achievement-status">✗</span>
+            </div>
+            <div class="achievement" id="achievement-1000">
+                <span class="achievement-label">1000次</span>
+                <span class="achievement-status">✗</span>
+            </div>
+            <div class="achievement" id="achievement-10000">
+                <span class="achievement-label">10000次</span>
+                <span class="achievement-status">✗</span>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="controls">
+            <button class="btn btn-subtle" onclick="resetGame()">重置</button>
+            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">换图</button>
+            <button class="btn btn-subtle" onclick="toggleSettings()">设置</button>
+        </div>
+    </div>
+
+    <!-- 手 -->
+    <div class="hand" id="hand">🖐️</div>
+
+    <!-- 设置面板 -->
+    <div class="settings-overlay" id="settingsOverlay" onclick="toggleSettings()"></div>
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-handle"></div>
+        <div class="settings-title">设置</div>
+
+        <div class="setting-group">
+            <h3>台词设置</h3>
+            <label>触发频率: <span id="frequencyValue">30%</span></label>
+            <input type="range" id="frequencySlider" min="0" max="100" value="30" oninput="updateFrequency(this.value)">
+            
+            <label style="margin-top: 12px;">台词列表</label>
+            <div class="dialogue-list" id="dialogueList"></div>
+            
+            <input type="text" id="newDialogue" placeholder="输入新台词...">
+            <button class="add-btn" onclick="addDialogue()">添加台词</button>
+        </div>
+    </div>
+
+    <script>
+        // ======== 游戏状态 ========
+        let slapCount = parseInt(localStorage.getItem('slapCount')) || 0;
+        let redIntensity = 0;
+        let lastX = 0, lastY = 0;
+        let lastTime = Date.now();
+        let velocityX = 0, velocityY = 0;
+        const SLAP_THRESHOLD = 15;
+
+        // 台词
+        let dialogues = JSON.parse(localStorage.getItem('slapDialogues')) || ['本王可不是读女诫长大的'];
+        let dialogueFrequency = parseFloat(localStorage.getItem('dialogueFrequency')) || 0.3;
+
+        // 元素
+        const hand = document.getElementById('hand');
+        const gameArea = document.getElementById('gameArea');
+        const counterEl = document.getElementById('counter');
+        const redOverlay = document.getElementById('redOverlay');
+        const targetImage = document.getElementById('targetImage');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        // ======== 音效 ========
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playWhipSound() {
+            const t = audioContext.currentTime;
+            const osc1 = audioContext.createOscillator();
+            const gain1 = audioContext.createGain();
+            osc1.connect(gain1); gain1.connect(audioContext.destination);
+            osc1.frequency.value = 80; osc1.type = 'sine';
+            gain1.gain.setValueAtTime(0.4, t);
+            gain1.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+            osc1.start(t); osc1.stop(t + 0.08);
+
+            const osc2 = audioContext.createOscillator();
+            const gain2 = audioContext.createGain();
+            osc2.connect(gain2); gain2.connect(audioContext.destination);
+            osc2.frequency.value = 2000; osc2.type = 'square';
+            gain2.gain.setValueAtTime(0.2, t);
+            gain2.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+            osc2.start(t); osc2.stop(t + 0.05);
+
+            const noise = audioContext.createBufferSource();
+            const bufferSize = audioContext.sampleRate * 0.1;
+            const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            noise.buffer = buffer;
+            const noiseGain = audioContext.createGain();
+            noiseGain.gain.setValueAtTime(0.3, t);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+            noise.connect(noiseGain); noiseGain.connect(audioContext.destination);
+            noise.start(t);
+        }
+
+        function playScreamSound() {
+            const t = audioContext.currentTime;
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.connect(gain); gain.connect(audioContext.destination);
+            const baseFreq = 400 + Math.random() * 200;
+            osc.frequency.setValueAtTime(baseFreq, t);
+            osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.7, t + 0.3);
+            osc.type = 'sawtooth';
+            gain.gain.setValueAtTime(0.15, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+            osc.start(t); osc.stop(t + 0.3);
+        }
+
+        function playSlapSound() {
+            playWhipSound();
+            if (Math.random() > 0.5) setTimeout(() => playScreamSound(), 50);
+        }
+
+        // ======== 图片上传 ========
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    targetImage.src = ev.target.result;
+                    targetImage.style.display = 'block';
+                    uploadArea.classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // ======== 移动与扇巴掌检测 ========
+        function handleMove(x, y) {
+            hand.style.left = x + 'px';
+            hand.style.top = y + 'px';
+            const now = Date.now();
+            const dt = now - lastTime;
+            if (dt > 0) {
+                velocityX = Math.abs((x - lastX) / dt) * 100;
+                velocityY = Math.abs((y - lastY) / dt) * 100;
+                const total = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+                const rect = gameArea.getBoundingClientRect();
+                const over = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+                if (total > SLAP_THRESHOLD && over && targetImage.style.display !== 'none') {
+                    triggerSlap(x, y);
+                }
+            }
+            lastX = x; lastY = y; lastTime = now;
+        }
+
+        document.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY));
+        document.addEventListener('touchmove', e => {
+            e.preventDefault();
+            const t = e.touches[0];
+            handleMove(t.clientX, t.clientY);
+        }, { passive: false });
+
+        // ======== 对话气泡 ========
+        function showDialogue() {
+            if (dialogues.length === 0 || Math.random() > dialogueFrequency) return;
+            const text = dialogues[Math.floor(Math.random() * dialogues.length)];
+            const bubble = document.createElement('div');
+            bubble.className = 'dialogue-bubble';
+            bubble.textContent = text;
+            gameArea.appendChild(bubble);
+            setTimeout(() => bubble.remove(), 2000);
+        }
+
+        // ======== 成就 ========
+        function checkAchievements() {
+            [1, 100, 1000, 10000].forEach(m => {
+                const el = document.getElementById('achievement-' + m);
+                if (slapCount >= m) {
+                    el.classList.add('unlocked');
+                    el.querySelector('.achievement-status').textContent = '✓';
+                } else {
+                    el.classList.remove('unlocked');
+                    el.querySelector('.achievement-status').textContent = '✗';
+                }
+            });
+        }
+
+        // ======== 触发扇巴掌 ========
+        function triggerSlap(x, y) {
+            slapCount++;
+            counterEl.textContent = slapCount;
+            localStorage.setItem('slapCount', slapCount);
+            counterEl.classList.add('hit');
+            setTimeout(() => counterEl.classList.remove('hit'), 250);
+
+            checkAchievements();
+            playSlapSound();
+
+            hand.classList.add('slapping');
+            setTimeout(() => hand.classList.remove('slapping'), 180);
+
+            gameArea.classList.add('shake');
+            setTimeout(() => gameArea.classList.remove('shake'), 280);
+
+            redIntensity = Math.min(redIntensity + 0.08, 0.7);
+            redOverlay.style.background = 'rgba(255, 0, 0, ' + redIntensity + ')';
+
+            createHitEffect(x, y);
+            showDialogue();
+        }
+
+        function createHitEffect(x, y) {
+            const effects = ['💥', '⭐', '✨', '💫', '🌟'];
+            const pick = () => effects[Math.floor(Math.random() * effects.length)];
+
+            const main = document.createElement('div');
+            main.className = 'hit-effect';
+            main.textContent = pick();
+            main.style.left = x + 'px';
+            main.style.top = y + 'px';
+            document.body.appendChild(main);
+            setTimeout(() => main.remove(), 500);
+
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    const p = document.createElement('div');
+                    p.className = 'hit-effect';
+                    p.textContent = pick();
+                    p.style.left = (x + (Math.random() - 0.5) * 80) + 'px';
+                    p.style.top = (y + (Math.random() - 0.5) * 80) + 'px';
+                    p.style.fontSize = (Math.random() * 1.5 + 0.8) + 'em';
+                    document.body.appendChild(p);
+                    setTimeout(() => p.remove(), 500);
+                }, i * 40);
+            }
+        }
+
+        // ======== 重置 ========
+        function resetGame() {
+            slapCount = 0;
+            redIntensity = 0;
+            counterEl.textContent = '0';
+            redOverlay.style.background = 'rgba(255, 0, 0, 0)';
+            localStorage.setItem('slapCount', 0);
+            checkAchievements();
+        }
+
+        // ======== 红色消散 ========
+        function fadeRed() {
+            if (redIntensity > 0) {
+                redIntensity = Math.max(0, redIntensity - 0.002);
+                redOverlay.style.background = 'rgba(255, 0, 0, ' + redIntensity + ')';
+            }
+            requestAnimationFrame(fadeRed);
+        }
+        fadeRed();
+
+        // ======== 设置面板 ========
+        function toggleSettings() {
+            const panel = document.getElementById('settingsPanel');
+            const overlay = document.getElementById('settingsOverlay');
+            const isOpen = panel.classList.contains('open');
+            if (isOpen) {
+                panel.classList.remove('open');
+                overlay.classList.remove('open');
+            } else {
+                panel.classList.add('open');
+                overlay.classList.add('open');
+                renderDialogueList();
+            }
+        }
+
+        function updateFrequency(val) {
+            dialogueFrequency = val / 100;
+            document.getElementById('frequencyValue').textContent = val + '%';
+            localStorage.setItem('dialogueFrequency', dialogueFrequency);
+        }
+
+        function renderDialogueList() {
+            const list = document.getElementById('dialogueList');
+            list.innerHTML = '';
+            dialogues.forEach((d, i) => {
+                const item = document.createElement('div');
+                item.className = 'dialogue-item';
+                item.innerHTML = '<span>' + d + '</span><button class="delete-btn" onclick="deleteDialogue(' + i + ')">✕</button>';
+                list.appendChild(item);
+            });
+        }
+
+        function addDialogue() {
+            const input = document.getElementById('newDialogue');
+            const text = input.value.trim();
+            if (text) {
+                dialogues.push(text);
+                localStorage.setItem('slapDialogues', JSON.stringify(dialogues));
+                input.value = '';
+                renderDialogueList();
+            }
+        }
+
+        function deleteDialogue(index) {
+            dialogues.splice(index, 1);
+            localStorage.setItem('slapDialogues', JSON.stringify(dialogues));
+            renderDialogueList();
+        }
+
+        // ======== 初始化 ========
+        document.getElementById('frequencySlider').value = dialogueFrequency * 100;
+        document.getElementById('frequencyValue').textContent = Math.round(dialogueFrequency * 100) + '%';
+        counterEl.textContent = slapCount;
+        checkAchievements();
+        hand.style.left = window.innerWidth / 2 + 'px';
+        hand.style.top = window.innerHeight / 2 + 'px';
+    </script>
+</body>
+</html>
